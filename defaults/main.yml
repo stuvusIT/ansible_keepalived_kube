@@ -1,3 +1,4 @@
+keepalived_kube_min_apiserver_version: 0.0
 keepalived_kube_image: bsctl/keepalived
 keepalived_kube_namespace: kube-system
 keepalived_kube_router_id_v4: 51

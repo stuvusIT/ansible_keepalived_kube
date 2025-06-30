@@ -1,11 +1,19 @@
 #!/bin/sh
 
 errorExit() {
-    echo "*** $*" 1>&2
+    >&2 echo "Health check failure: $*"
     exit 1
 }
 
-curl --silent --max-time 2 --insecure https://[::1]:6443/ -o /dev/null || errorExit "Error GET https://[::1]:6443/"
-if ip -6 addr | grep -q {{ keepalived_kube_vip_v6 }}; then
-    curl --silent --max-time 2 --insecure https://[{{ keepalived_kube_vip_v6 }}]:6443/ -o /dev/null || errorExit "Error GET https://[{{ keepalived_kube_vip_v6 }}]:6443/"
+check() {
+    output=$(curl -6 --silent --max-time 2 --insecure "https://[$1]:6443/version" --show-error) || errorExit "failed to GET https://[$1]:6443/version"
+    major=$(printf "$output" | grep '"major":' | sed -E 's/.*"major":.*"([^"]*)".*?/\1/')
+    minor=$(printf "$output" | grep '"minor":' | sed -E 's/.*"minor":.*"([^"]*)".*?/\1/')
+    version=$major.$minor
+    printf {{ keepalived_kube_min_apiserver_version | quote }}"\n$version" | sort -c -V || errorExit "kube-apiserver v$version < "{{ keepalived_kube_min_apiserver_version | quote }}
+}
+
+check ::1
+if ip -6 addr | grep -q {{ keepalived_kube_vip_v6 | quote }}; then
+    check {{ keepalived_kube_vip_v6 | quote }}
 fi
